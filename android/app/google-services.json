@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1034972929409",
+    "project_id": "mazonn-ecommerce-and-pos",
+    "storage_bucket": "mazonn-ecommerce-and-pos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1034972929409:android:3ca790294cc342e0fa1c80",
+        "android_client_info": {
+          "package_name": "com.example.mazon_ecommerce_pos_ecosystem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5UCk21XdiHr1SBiZtrbUg3x2n_6cJyBw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
