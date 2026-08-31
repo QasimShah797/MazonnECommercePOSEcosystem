@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart' hide Category;
 
 import '../../data/repositories/product_repository.dart';
+import '../../data/search/search_synonyms.dart';
 import '../../models/catalog_extras.dart';
 import '../../models/category.dart';
 import '../../models/product.dart';
 import '../../models/review.dart';
+import '../../services/search_service.dart';
 import '../../services/session_service.dart';
 
 class CatalogController extends ChangeNotifier {
@@ -24,7 +26,7 @@ class CatalogController extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
-  List<Product> get products => _products.where((p) => p.isActive).toList();
+  List<Product> get products => _products.where((p) => p.isMarketplaceVisible).toList();
   List<ProductCategory> get categories => _categories;
   List<PromoBanner> get banners => _banners;
   List<String> get recentSearches => _recentSearches;
@@ -72,6 +74,10 @@ class CatalogController extends ChangeNotifier {
       _categories = results[1] as List<ProductCategory>;
       _banners = results[2] as List<PromoBanner>;
       _recentSearches = _session.readRecentSearches();
+      final overrides = _session.readSearchAliasOverrides();
+      if (overrides.isNotEmpty) {
+        mazonnSearch.replaceSynonyms(SearchSynonymTable.defaults().merge(SearchSynonymTable(aliases: overrides)));
+      }
     } catch (_) {
       _error = 'Unable to load the catalog right now.';
     } finally {
@@ -95,6 +101,18 @@ class CatalogController extends ChangeNotifier {
       _recentSearches = _recentSearches.take(8).toList();
     }
     await _session.writeRecentSearches(_recentSearches);
+    notifyListeners();
+  }
+
+  Future<void> addSearchAlias(String from, String to) async {
+    mazonnSearch.replaceSynonyms(mazonnSearch.synonyms.withAlias(from, to));
+    await _session.writeSearchAliasOverrides(mazonnSearch.synonyms.aliases);
+    notifyListeners();
+  }
+
+  Future<void> removeSearchAlias(String from, String to) async {
+    mazonnSearch.replaceSynonyms(mazonnSearch.synonyms.withoutAlias(from, to));
+    await _session.writeSearchAliasOverrides(mazonnSearch.synonyms.aliases);
     notifyListeners();
   }
 

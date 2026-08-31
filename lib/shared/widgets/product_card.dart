@@ -4,7 +4,7 @@ import '../../core/theme/mazonn_colors.dart';
 import '../../core/theme/mazonn_metrics.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/product.dart';
-import 'mazonn_visual.dart';
+import 'mazonn_image.dart';
 
 class ProductCard extends StatelessWidget {
   const ProductCard({
@@ -27,97 +27,103 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AspectRatio(
+          aspectRatio: 0.86,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: MazonnImage.product(product, borderRadius: MazonnRadius.card),
+              ),
+              if (product.badges.isNotEmpty)
+                Positioned(
+                  left: 10,
+                  top: 10,
+                  child: ProductBadge(label: product.badges.first),
+                ),
+              Positioned(
+                right: 8,
+                top: 8,
+                child: _RoundIconButton(
+                  icon: wishlisted ? Icons.favorite : Icons.favorite_border,
+                  color: wishlisted ? MazonnColors.error : MazonnColors.noir,
+                  onTap: onWishlist,
+                ),
+              ),
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: _RoundIconButton(
+                  icon: Icons.add,
+                  onTap: onAdd,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          product.brand.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.labelSmall,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          product.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.titleSmall,
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Text(MazonnFormatters.money(product.price), style: textTheme.titleSmall),
+            if (product.originalPrice != null) ...[
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  MazonnFormatters.money(product.originalPrice!),
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    decoration: TextDecoration.lineThrough,
+                    color: MazonnColors.stoneLight,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            const Icon(Icons.star_rounded, size: 14, color: MazonnColors.gold),
+            const SizedBox(width: 2),
+            Text(
+              '${product.rating}  (${MazonnFormatters.compactCount(product.reviewCount)})',
+              style: textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ],
+    );
     return SizedBox(
       width: width,
       child: InkWell(
         onTap: onTap,
         borderRadius: MazonnRadius.card,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 0.86,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: MazonnVisual(
-                      seed: product.visualSeed,
-                      categoryId: product.categoryId,
-                      monogram: product.brand.substring(0, 1),
-                      borderRadius: MazonnRadius.card,
-                    ),
-                  ),
-                  if (product.badges.isNotEmpty)
-                    Positioned(
-                      left: 10,
-                      top: 10,
-                      child: ProductBadge(label: product.badges.first),
-                    ),
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: _RoundIconButton(
-                      icon: wishlisted ? Icons.favorite : Icons.favorite_border,
-                      color: wishlisted ? MazonnColors.error : MazonnColors.noir,
-                      onTap: onWishlist,
-                    ),
-                  ),
-                  Positioned(
-                    right: 8,
-                    bottom: 8,
-                    child: _RoundIconButton(
-                      icon: Icons.add,
-                      onTap: onAdd,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              product.brand.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.labelSmall,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              product.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.titleSmall,
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Text(MazonnFormatters.money(product.price), style: textTheme.titleSmall),
-                if (product.originalPrice != null) ...[
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      MazonnFormatters.money(product.originalPrice!),
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(
-                        decoration: TextDecoration.lineThrough,
-                        color: MazonnColors.stoneLight,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.star_rounded, size: 14, color: MazonnColors.gold),
-                const SizedBox(width: 2),
-                Text(
-                  '${product.rating}  (${MazonnFormatters.compactCount(product.reviewCount)})',
-                  style: textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (!constraints.hasBoundedHeight) return column;
+            return FittedBox(
+              alignment: Alignment.topCenter,
+              fit: BoxFit.scaleDown,
+              child: SizedBox(width: constraints.maxWidth, child: column),
+            );
+          },
         ),
       ),
     );

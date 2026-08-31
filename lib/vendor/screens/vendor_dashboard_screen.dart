@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/mazonn_colors.dart';
@@ -10,6 +11,7 @@ import '../../../shared/controllers/auth_controller.dart';
 import '../../../shared/widgets/mazonn_ui.dart';
 import '../../../user/screens/orders_screen.dart';
 import '../controllers/vendor_studio_controller.dart';
+import '../widgets/vendor_access_gate.dart';
 
 class VendorDashboardScreen extends StatelessWidget {
   const VendorDashboardScreen({super.key});
@@ -24,6 +26,7 @@ class VendorDashboardScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
           children: [
@@ -32,6 +35,29 @@ class VendorDashboardScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             Text(vendor?.businessName ?? 'Studio', style: Theme.of(context).textTheme.bodySmall),
+            if (vendor != null) VendorStatusBanner(vendor: vendor),
+            if (vendor?.canSell != true) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Complete your business profile and upload verification documents while Super Admin reviews your application.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+            if (vendor?.canSell == true && studio.pendingCount > 0) ...[
+              const SizedBox(height: 16),
+              Material(
+                color: MazonnColors.cream,
+                borderRadius: MazonnRadius.card,
+                child: ListTile(
+                  leading: const Icon(Icons.notifications_active_outlined, color: MazonnColors.goldDark),
+                  title: const Text('New Order Received'),
+                  subtitle: Text('${studio.pendingCount} order${studio.pendingCount == 1 ? '' : 's'} waiting for Accept / Reject'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {},
+                ),
+              ),
+            ],
+            if (vendor?.canSell == true) ...[
             const SizedBox(height: 20),
             Wrap(
               spacing: 10,
@@ -95,6 +121,31 @@ class VendorDashboardScreen extends StatelessWidget {
               Text('All pieces are comfortably in stock.', style: Theme.of(context).textTheme.bodySmall)
             else
               ...studio.lowStock.map((p) => _ProductRow(product: p, alert: true)),
+            ] else ...[
+              const SizedBox(height: 20),
+              Text('Onboarding', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 10),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.storefront_outlined),
+                title: const Text('Complete your business profile'),
+                subtitle: const Text('Owner, address, CNIC, and bank details'),
+                onTap: () => context.go('/studio/profile'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.upload_file_outlined),
+                title: const Text('Upload verification documents'),
+                subtitle: const Text('CNIC, business registration, and store logo'),
+                onTap: () => context.go('/studio/profile'),
+              ),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.verified_outlined),
+                title: Text('Wait for Super Admin review'),
+                subtitle: Text('Selling, orders, and earnings unlock after approval'),
+              ),
+            ],
           ],
         ),
       ),

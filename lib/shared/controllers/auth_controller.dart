@@ -38,7 +38,20 @@ class AuthController extends ChangeNotifier {
   String? get error => _error;
   bool get isUser => _role == AppRole.user && _user != null;
   bool get isVendor => _role == AppRole.vendor && _vendor != null;
-  bool get isAuthenticated => isUser || isVendor;
+  bool get isAdmin => _role == AppRole.admin && _user != null;
+  bool get isAuthenticated => isUser || isVendor || isAdmin;
+  bool get vendorCanSell => _vendor?.canSell ?? false;
+
+  String get recipientId => _vendor?.id ?? _user?.id ?? '';
+
+  void _applyUser(AppUser user) {
+    if (user.suspended) {
+      throw const AuthFailure('This account has been suspended.');
+    }
+    _user = user;
+    _vendor = null;
+    _role = user.role == 'admin' ? AppRole.admin : AppRole.user;
+  }
 
   void clearError() {
     if (_error == null) return;
@@ -65,10 +78,11 @@ class AuthController extends ChangeNotifier {
       }
       final user = await _authRepository.restoreUser();
       if (user != null) {
+        if (user.role == 'vendor') {
+          // Vendor restore is handled above; keep going only for shop/admin users.
+        }
         await _session.saveUser(user);
-        _user = user;
-        _vendor = null;
-        _role = AppRole.user;
+        _applyUser(user);
         notifyListeners();
         return;
       }
@@ -88,9 +102,7 @@ class AuthController extends ChangeNotifier {
     return _run(() async {
       final user = await _authRepository.loginUser(email: email, password: password);
       await _session.saveUser(user);
-      _user = user;
-      _vendor = null;
-      _role = AppRole.user;
+      _applyUser(user);
     });
   }
 
@@ -98,9 +110,7 @@ class AuthController extends ChangeNotifier {
     return _run(() async {
       final user = await _authRepository.signInWithGoogle();
       await _session.saveUser(user);
-      _user = user;
-      _vendor = null;
-      _role = AppRole.user;
+      _applyUser(user);
     });
   }
 
@@ -118,9 +128,7 @@ class AuthController extends ChangeNotifier {
         password: password,
       );
       await _session.saveUser(user);
-      _user = user;
-      _vendor = null;
-      _role = AppRole.user;
+      _applyUser(user);
     });
   }
 
@@ -142,6 +150,11 @@ class AuthController extends ChangeNotifier {
     required String password,
     required String category,
     required String address,
+    String cnic = '',
+    String bankName = '',
+    String accountTitle = '',
+    String accountNumber = '',
+    String iban = '',
   }) async {
     return _run(() async {
       final vendor = await _authRepository.registerVendor(
@@ -152,6 +165,11 @@ class AuthController extends ChangeNotifier {
         password: password,
         category: category,
         address: address,
+        cnic: cnic,
+        bankName: bankName,
+        accountTitle: accountTitle,
+        accountNumber: accountNumber,
+        iban: iban,
       );
       await _session.saveVendor(vendor);
       _vendor = vendor;
@@ -175,6 +193,14 @@ class AuthController extends ChangeNotifier {
     _vendor = vendor;
     await _session.saveVendor(vendor);
     await _authRepository.updateVendorProfile(vendor);
+    notifyListeners();
+  }
+
+  Future<void> reloadVendor() async {
+    final vendor = await _authRepository.restoreVendor();
+    if (vendor == null) return;
+    _vendor = vendor;
+    await _session.saveVendor(vendor);
     notifyListeners();
   }
 

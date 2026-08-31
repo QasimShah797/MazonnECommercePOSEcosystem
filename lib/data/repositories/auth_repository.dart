@@ -20,6 +20,11 @@ abstract class AuthRepository {
     required String password,
     required String category,
     required String address,
+    String cnic = '',
+    String bankName = '',
+    String accountTitle = '',
+    String accountNumber = '',
+    String iban = '',
   });
   Future<void> signOut();
   Future<void> updateUserProfile(AppUser user);

@@ -8,6 +8,7 @@ class Address {
     required this.city,
     required this.region,
     required this.postalCode,
+    this.country = 'Pakistan',
     this.isDefault = false,
   });
 
@@ -19,9 +20,19 @@ class Address {
   final String city;
   final String region;
   final String postalCode;
+  final String country;
   final bool isDefault;
 
-  String get summary => '$line1, $city';
+  String get summary => '$line1, $city, $region, $country';
+
+  bool get isLegacyForeign {
+    final haystack = '$city $region $country'.toLowerCase();
+    return haystack.contains('san francisco') ||
+        haystack.contains('california') ||
+        region.toUpperCase() == 'CA' ||
+        country.toLowerCase() == 'united states' ||
+        country.toLowerCase() == 'usa';
+  }
 
   Address copyWith({
     String? label,
@@ -31,6 +42,7 @@ class Address {
     String? city,
     String? region,
     String? postalCode,
+    String? country,
     bool? isDefault,
   }) {
     return Address(
@@ -42,6 +54,7 @@ class Address {
       city: city ?? this.city,
       region: region ?? this.region,
       postalCode: postalCode ?? this.postalCode,
+      country: country ?? this.country,
       isDefault: isDefault ?? this.isDefault,
     );
   }
@@ -55,6 +68,7 @@ class Address {
         'city': city,
         'region': region,
         'postalCode': postalCode,
+        'country': country,
         'isDefault': isDefault,
       };
 
@@ -66,7 +80,8 @@ class Address {
         line1: json['line1'] as String,
         city: json['city'] as String,
         region: json['region'] as String,
-        postalCode: json['postalCode'] as String,
+        postalCode: json['postalCode'] as String? ?? '',
+        country: json['country'] as String? ?? 'Pakistan',
         isDefault: json['isDefault'] as bool? ?? false,
       );
 }

@@ -5,17 +5,14 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/mazonn_colors.dart';
 import '../../../core/theme/mazonn_metrics.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/utils/validators.dart';
-import '../../../data/mock/mock_catalog.dart';
 import '../../../models/order.dart';
 import '../../../models/product.dart';
-import '../../../shared/controllers/auth_controller.dart';
 import '../../../shared/widgets/mazonn_button.dart';
-import '../../../shared/widgets/mazonn_text_field.dart';
+import '../../../shared/widgets/mazonn_image.dart';
 import '../../../shared/widgets/mazonn_ui.dart';
-import '../../../shared/widgets/mazonn_visual.dart';
 import '../../../user/screens/orders_screen.dart';
 import '../controllers/vendor_studio_controller.dart';
+import '../widgets/vendor_access_gate.dart';
 
 class VendorProductsScreen extends StatelessWidget {
   const VendorProductsScreen({super.key});
@@ -23,7 +20,9 @@ class VendorProductsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final studio = context.watch<VendorStudioController>();
-    return Scaffold(
+    return VendorAccessGate(
+      feature: 'product publishing',
+      child: Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Products'),
@@ -50,7 +49,7 @@ class VendorProductsScreen extends StatelessWidget {
                       SizedBox(
                         width: 64,
                         height: 72,
-                        child: MazonnVisual(seed: p.visualSeed, categoryId: p.categoryId, monogram: p.brand.substring(0, 1)),
+                        child: MazonnImage.product(p),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -60,8 +59,12 @@ class VendorProductsScreen extends StatelessWidget {
                             Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall),
                             Text('${MazonnFormatters.money(p.price)} · Stock ${p.stock} · ${p.sales} sold', style: Theme.of(context).textTheme.bodySmall),
                             StatusChip(
-                              label: p.isActive ? 'Active' : 'Disabled',
-                              color: p.isActive ? MazonnColors.success : MazonnColors.stone,
+                              label: p.moderation.label,
+                              color: p.moderation == ProductModeration.approved
+                                  ? MazonnColors.success
+                                  : p.moderation == ProductModeration.rejected
+                                      ? MazonnColors.error
+                                      : MazonnColors.warning,
                             ),
                           ],
                         ),
@@ -83,135 +86,6 @@ class VendorProductsScreen extends StatelessWidget {
                 );
               },
             ),
-    );
-  }
-}
-
-class VendorProductFormScreen extends StatefulWidget {
-  const VendorProductFormScreen({super.key, this.existing});
-  final Product? existing;
-
-  @override
-  State<VendorProductFormScreen> createState() => _VendorProductFormScreenState();
-}
-
-class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
-  late final TextEditingController _name;
-  late final TextEditingController _desc;
-  late final TextEditingController _price;
-  late final TextEditingController _discount;
-  late final TextEditingController _stock;
-  late final TextEditingController _sku;
-  late final TextEditingController _brand;
-  late final TextEditingController _variants;
-  String _category = 'fashion';
-  final _form = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    super.initState();
-    final p = widget.existing;
-    _name = TextEditingController(text: p?.name);
-    _desc = TextEditingController(text: p?.description);
-    _price = TextEditingController(text: p?.price.toString());
-    _discount = TextEditingController(text: p?.originalPrice?.toString() ?? '');
-    _stock = TextEditingController(text: p?.stock.toString() ?? '10');
-    _sku = TextEditingController(text: p?.sku ?? 'AN-NEW');
-    _brand = TextEditingController(text: p?.brand ?? 'Atelier Noir');
-    _variants = TextEditingController(text: p == null ? 'Stone, Noir' : p.colors.join(', '));
-    _category = p?.categoryId ?? 'fashion';
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _desc.dispose();
-    _price.dispose();
-    _discount.dispose();
-    _stock.dispose();
-    _sku.dispose();
-    _brand.dispose();
-    _variants.dispose();
-    super.dispose();
-  }
-
-  Product _build({required bool active}) {
-    final vendor = context.read<AuthController>().vendor;
-    final price = double.tryParse(_price.text) ?? 0;
-    final original = double.tryParse(_discount.text);
-    return Product(
-      id: widget.existing?.id ?? 'p_${DateTime.now().millisecondsSinceEpoch}',
-      name: _name.text,
-      brand: _brand.text,
-      description: _desc.text,
-      categoryId: _category,
-      vendorId: vendor?.id ?? MockCatalog.vendorId,
-      vendorName: vendor?.businessName ?? 'Studio',
-      price: price,
-      originalPrice: original,
-      rating: widget.existing?.rating ?? 5,
-      reviewCount: widget.existing?.reviewCount ?? 0,
-      stock: int.tryParse(_stock.text) ?? 0,
-      sku: _sku.text,
-      visualSeed: widget.existing?.visualSeed ?? DateTime.now().millisecond,
-      colors: _variants.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-      isActive: active,
-      sales: widget.existing?.sales ?? 0,
-    );
-  }
-
-  Future<void> _save({required bool publish}) async {
-    if (!_form.currentState!.validate()) return;
-    await context.read<VendorStudioController>().saveProduct(_build(active: publish));
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: MazonnAppBar(title: widget.existing == null ? 'Add product' : 'Edit product'),
-      body: Form(
-        key: _form,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: MazonnVisual(seed: widget.existing?.visualSeed ?? 7, categoryId: _category, monogram: 'IMG'),
-            ),
-            const SizedBox(height: 8),
-            Text('Product images (placeholders — replace later with studio photos)', style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 16),
-            MazonnTextField(label: 'Product name', controller: _name, validator: (v) => MazonnValidators.requiredField(v, label: 'Name')),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _category,
-              items: MockCatalog.categories
-                  .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
-                  .toList(),
-              onChanged: (v) => setState(() => _category = v ?? _category),
-              decoration: const InputDecoration(labelText: 'Category'),
-            ),
-            const SizedBox(height: 12),
-            MazonnTextField(label: 'Description', controller: _desc, maxLines: 4),
-            const SizedBox(height: 12),
-            MazonnTextField(label: 'Price', controller: _price, keyboardType: TextInputType.number, validator: MazonnValidators.price),
-            const SizedBox(height: 12),
-            MazonnTextField(label: 'Original price / discount from', controller: _discount, keyboardType: TextInputType.number),
-            const SizedBox(height: 12),
-            MazonnTextField(label: 'Stock quantity', controller: _stock, keyboardType: TextInputType.number),
-            const SizedBox(height: 12),
-            MazonnTextField(label: 'SKU', controller: _sku),
-            const SizedBox(height: 12),
-            MazonnTextField(label: 'Brand', controller: _brand),
-            const SizedBox(height: 12),
-            MazonnTextField(label: 'Variants (comma separated)', controller: _variants),
-            const SizedBox(height: 20),
-            MazonnButton(label: 'Save draft', tone: MazonnButtonTone.outline, onPressed: () => _save(publish: false)),
-            const SizedBox(height: 10),
-            MazonnButton(label: 'Publish product', onPressed: () => _save(publish: true)),
-          ],
-        ),
       ),
     );
   }
@@ -223,8 +97,10 @@ class VendorOrdersScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final studio = context.watch<VendorStudioController>();
-    return DefaultTabController(
-      length: 5,
+    return VendorAccessGate(
+      feature: 'order management',
+      child: DefaultTabController(
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -239,19 +115,22 @@ class VendorOrdersScreen extends StatelessWidget {
               Tab(text: 'Processing'),
               Tab(text: 'Shipped'),
               Tab(text: 'Delivered'),
+              Tab(text: 'Rejected'),
               Tab(text: 'Cancelled'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            _list(studio.byStatus(OrderStatus.processing)),
+            _list(studio.byStatus(OrderStatus.pending)),
             _list(studio.byStatus(OrderStatus.processing)),
             _list(studio.byStatus(OrderStatus.shipped)),
             _list(studio.byStatus(OrderStatus.delivered)),
+            _list(studio.byStatus(OrderStatus.rejected)),
             _list(studio.byStatus(OrderStatus.cancelled)),
           ],
         ),
+      ),
       ),
     );
   }
@@ -278,15 +157,32 @@ class VendorOrderDetailsScreen extends StatelessWidget {
     if (order == null) {
       return const Scaffold(body: EmptyState(icon: Icons.help_outline, title: 'Not found', message: ''));
     }
-    return Scaffold(
+    return VendorAccessGate(
+      feature: 'order management',
+      child: Scaffold(
       appBar: MazonnAppBar(title: order.id),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(order.status.label, style: Theme.of(context).textTheme.titleMedium),
+          Text('NEW ORDER #${order.id}', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          Text('${order.customerName.isEmpty ? 'Customer' : order.customerName} · ${order.itemCount} items'),
+          Text(MazonnFormatters.dateTime(order.placedAt), style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 8),
-          Text('Customer delivery'),
+          StatusChip(
+            label: order.status.label,
+            color: switch (order.status) {
+              OrderStatus.pending => MazonnColors.warning,
+              OrderStatus.processing => MazonnColors.warning,
+              OrderStatus.shipped => MazonnColors.info,
+              OrderStatus.delivered => MazonnColors.success,
+              OrderStatus.cancelled => MazonnColors.error,
+              OrderStatus.rejected => MazonnColors.error,
+            },
+          ),
+          const SizedBox(height: 12),
           Text(order.addressLine),
+          Text(order.paymentMethod),
           const Divider(height: 28),
           ...order.items.map((e) => ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -297,9 +193,18 @@ class VendorOrderDetailsScreen extends StatelessWidget {
           const Divider(height: 28),
           Text('Total ${MazonnFormatters.money(order.total)}', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 20),
+          if (order.status == OrderStatus.pending) ...[
+            MazonnButton(label: 'ACCEPT', onPressed: () => studio.acceptOrder(order.id)),
+            const SizedBox(height: 10),
+            MazonnButton(
+              label: 'REJECT',
+              tone: MazonnButtonTone.outline,
+              onPressed: () => studio.rejectOrder(order.id),
+            ),
+          ],
           if (order.status == OrderStatus.processing)
             MazonnButton(
-              label: 'Accept / mark shipped',
+              label: 'Mark shipped',
               onPressed: () => studio.updateOrderStatus(order.id, OrderStatus.shipped),
             ),
           if (order.status == OrderStatus.shipped) ...[
@@ -310,7 +215,7 @@ class VendorOrderDetailsScreen extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          if (order.status != OrderStatus.cancelled && order.status != OrderStatus.delivered)
+          if (OrderTransitions.canTransition(order.status, OrderStatus.cancelled))
             MazonnButton(
               label: 'Cancel order',
               tone: MazonnButtonTone.outline,
@@ -318,6 +223,7 @@ class VendorOrderDetailsScreen extends StatelessWidget {
             ),
         ],
       ),
+    ),
     );
   }
 }

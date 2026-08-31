@@ -13,6 +13,7 @@ import '../../../shared/widgets/mazonn_visual.dart';
 import '../../../shared/widgets/product_card.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/catalog_controller.dart';
+import '../controllers/notification_controller.dart';
 import '../controllers/wishlist_controller.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -34,6 +35,7 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
@@ -73,7 +75,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     IconBadgeButton(
                       icon: Icons.notifications_none_outlined,
-                      count: 2,
+                      count: context.watch<NotificationController>().unreadCount,
                       onPressed: () => context.push('/shop/notifications'),
                     ),
                   ],

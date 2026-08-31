@@ -1,12 +1,16 @@
 import 'package:flutter/foundation.dart';
 
-import '../../data/mock/mock_catalog.dart';
+import '../../core/constants/app_constants.dart';
 import '../../models/address.dart';
 import '../../services/session_service.dart';
 
 class AddressController extends ChangeNotifier {
   AddressController(this._session) {
-    _addresses = _session.readAddresses(MockCatalog.addresses);
+    final stored = _session.readAddresses(const []);
+    _addresses = stored.where((a) => !a.isLegacyForeign).toList();
+    if (_addresses.length != stored.length) {
+      _session.writeAddresses(_addresses);
+    }
   }
 
   final SessionService _session;
@@ -29,23 +33,28 @@ class AddressController extends ChangeNotifier {
   }
 
   Future<void> save(Address address) async {
-    final index = _addresses.indexWhere((a) => a.id == address.id);
+    final nextAddress = address.copyWith(
+      country: address.country.trim().isEmpty ? AppConstants.defaultCountry : address.country,
+    );
+    final index = _addresses.indexWhere((a) => a.id == nextAddress.id);
     var next = List<Address>.from(_addresses);
-    if (address.isDefault) {
+    if (nextAddress.isDefault) {
       next = next.map((a) => a.copyWith(isDefault: false)).toList();
     }
     if (index >= 0) {
-      next[index] = address;
+      next[index] = nextAddress;
     } else {
-      next.add(address);
+      next.add(nextAddress);
     }
     _addresses = next;
+    _selectedId = nextAddress.id;
     await _session.writeAddresses(_addresses);
     notifyListeners();
   }
 
   Future<void> remove(String id) async {
     _addresses.removeWhere((a) => a.id == id);
+    if (_selectedId == id) _selectedId = null;
     await _session.writeAddresses(_addresses);
     notifyListeners();
   }

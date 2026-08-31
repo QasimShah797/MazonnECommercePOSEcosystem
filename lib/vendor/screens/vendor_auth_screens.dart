@@ -123,6 +123,11 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
   final _phone = TextEditingController();
   final _password = TextEditingController();
   final _address = TextEditingController();
+  final _cnic = TextEditingController();
+  final _bankName = TextEditingController();
+  final _accountTitle = TextEditingController();
+  final _accountNumber = TextEditingController();
+  final _iban = TextEditingController();
   String _category = 'Fashion';
   bool _terms = false;
 
@@ -134,6 +139,11 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
     _phone.dispose();
     _password.dispose();
     _address.dispose();
+    _cnic.dispose();
+    _bankName.dispose();
+    _accountTitle.dispose();
+    _accountNumber.dispose();
+    _iban.dispose();
     super.dispose();
   }
 
@@ -174,6 +184,16 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
               ),
               const SizedBox(height: 12),
               MazonnTextField(label: 'Business address', controller: _address, validator: (v) => MazonnValidators.requiredField(v, label: 'Address')),
+              const SizedBox(height: 12),
+              MazonnTextField(label: 'CNIC / business ID', controller: _cnic),
+              const SizedBox(height: 12),
+              MazonnTextField(label: 'Bank name', controller: _bankName),
+              const SizedBox(height: 12),
+              MazonnTextField(label: 'Account title', controller: _accountTitle),
+              const SizedBox(height: 12),
+              MazonnTextField(label: 'Account number', controller: _accountNumber),
+              const SizedBox(height: 12),
+              MazonnTextField(label: 'IBAN', controller: _iban),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _terms,
@@ -197,10 +217,24 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                     password: _password.text,
                     category: _category,
                     address: _address.text,
+                    cnic: _cnic.text,
+                    bankName: _bankName.text,
+                    accountTitle: _accountTitle.text,
+                    accountNumber: _accountNumber.text,
+                    iban: _iban.text,
                   );
                   if (!ok || !context.mounted) return;
                   await context.read<VendorStudioController>().load();
-                  if (context.mounted) context.go('/studio');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Your vendor account is under review. You will be able to sell on the platform after Super Admin approval.',
+                        ),
+                      ),
+                    );
+                    context.go('/studio');
+                  }
                 },
               ),
             ],

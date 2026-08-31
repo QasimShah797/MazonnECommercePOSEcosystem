@@ -1,3 +1,4 @@
+import 'bulk_pricing.dart';
 import 'product.dart';
 
 class CartItem {
@@ -13,7 +14,9 @@ class CartItem {
   final String? selectedColor;
   final String? selectedSize;
 
-  double get lineTotal => product.price * quantity;
+  LinePrice get quote => product.quote(quantity);
+  double get lineTotal => quote.total;
+  double get bulkDiscount => quote.discount;
 
   String get variantKey => '${product.id}|${selectedColor ?? ''}|${selectedSize ?? ''}';
 

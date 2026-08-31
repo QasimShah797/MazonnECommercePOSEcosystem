@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/errors/auth_failure.dart';
 import '../../core/firebase/mazonn_firebase.dart';
+import '../../data/mock/mock_catalog.dart';
 import '../../models/user.dart';
 import '../../models/vendor.dart';
 import 'auth_repository.dart';
@@ -34,16 +35,20 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<AppUser> loginUser({required String email, required String password}) async {
+    final trimmed = email.trim();
+    if (_isDemoAdmin(trimmed, password)) {
+      return _signInOrCreateDemoAdmin();
+    }
     try {
       final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
+        email: trimmed,
         password: password,
       );
       final uid = credential.user?.uid;
       if (uid == null) throw const AuthFailure('Unable to sign in.');
       final user = await _readOrCreateUser(
         uid: uid,
-        email: email.trim(),
+        email: trimmed,
         fallbackName: credential.user?.displayName,
       );
       await MazonnFirebase.seedCatalogIfNeeded();
@@ -51,6 +56,58 @@ class FirebaseAuthRepository implements AuthRepository {
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e));
     }
+  }
+
+  bool _isDemoAdmin(String email, String password) =>
+      email.toLowerCase() == AppConstants.demoAdminEmail && password == AppConstants.demoAdminPassword;
+
+  Future<AppUser> _signInOrCreateDemoAdmin() async {
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: AppConstants.demoAdminEmail,
+        password: AppConstants.demoAdminPassword,
+      );
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) throw const AuthFailure('Unable to sign in.');
+      return await _writeDemoAdmin(firebaseUser.uid);
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'user-not-found' && e.code != 'wrong-password' && e.code != 'invalid-credential') {
+        throw AuthFailure(_messageFor(e));
+      }
+    }
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: AppConstants.demoAdminEmail,
+        password: AppConstants.demoAdminPassword,
+      );
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) throw const AuthFailure('Unable to create the Super Admin account.');
+      await firebaseUser.updateDisplayName(MockCatalog.demoAdmin.fullName);
+      return await _writeDemoAdmin(firebaseUser.uid);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw const AuthFailure(
+          'admin@mazonn.app already exists in Firebase with a different password. In Firebase Console → Authentication, set that user’s password to admin123, then try again.',
+        );
+      }
+      throw AuthFailure(_messageFor(e));
+    }
+  }
+
+  Future<AppUser> _writeDemoAdmin(String uid) async {
+    final demo = MockCatalog.demoAdmin;
+    final user = AppUser(
+      id: uid,
+      fullName: demo.fullName,
+      email: AppConstants.demoAdminEmail,
+      phone: demo.phone,
+      avatarLabel: demo.avatarLabel,
+      city: demo.city,
+      role: 'admin',
+    );
+    await _users.doc(uid).set({...user.toJson(), 'role': 'admin'}, SetOptions(merge: true));
+    await MazonnFirebase.seedCatalogIfNeeded();
+    return user;
   }
 
   @override
@@ -75,7 +132,7 @@ class FirebaseAuthRepository implements AuthRepository {
         phone: phone.trim(),
         avatarLabel: _initials(fullName),
       );
-      await _users.doc(uid).set({...user.toJson(), 'role': 'user'});
+      await _users.doc(uid).set({...user.toJson(), 'role': user.role});
       await MazonnFirebase.seedCatalogIfNeeded();
       return user;
     } on FirebaseAuthException catch (e) {
@@ -93,10 +150,15 @@ class FirebaseAuthRepository implements AuthRepository {
       }
       try {
         await GoogleSignIn.instance.initialize(
-          serverClientId: AppConstants.googleWebClientId.isEmpty ? null : AppConstants.googleWebClientId,
+          serverClientId: AppConstants.googleWebClientId,
         );
       } catch (_) {}
-      final googleUser = await GoogleSignIn.instance.authenticate();
+      if (!GoogleSignIn.instance.supportsAuthenticate()) {
+        throw const AuthFailure('Google sign-in is not available on this device.');
+      }
+      final googleUser = await GoogleSignIn.instance.authenticate(
+        scopeHint: const ['email', 'profile', 'openid'],
+      );
       final idToken = googleUser.authentication.idToken;
       if (idToken == null) {
         throw const AuthFailure('Google did not return a sign-in token. Add your Web client ID and try again.');
@@ -120,6 +182,11 @@ class FirebaseAuthRepository implements AuthRepository {
       }
       throw AuthFailure(_googleMessage(e));
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'operation-not-allowed') {
+        throw const AuthFailure(
+          'Google sign-in is disabled in Firebase. Enable Google under Authentication → Sign-in method.',
+        );
+      }
       throw AuthFailure(_messageFor(e));
     } catch (e) {
       throw AuthFailure(e.toString().contains('YOUR_API_KEY')
@@ -166,6 +233,11 @@ class FirebaseAuthRepository implements AuthRepository {
     required String password,
     required String category,
     required String address,
+    String cnic = '',
+    String bankName = '',
+    String accountTitle = '',
+    String accountNumber = '',
+    String iban = '',
   }) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -175,6 +247,7 @@ class FirebaseAuthRepository implements AuthRepository {
       final uid = credential.user?.uid;
       if (uid == null) throw const AuthFailure('Unable to create your vendor account.');
       await credential.user?.updateDisplayName(ownerName.trim());
+      final now = DateTime.now();
       final vendor = Vendor(
         id: uid,
         businessName: businessName.trim(),
@@ -183,7 +256,23 @@ class FirebaseAuthRepository implements AuthRepository {
         phone: phone.trim(),
         category: category,
         address: address.trim(),
+        approvalStatus: 'pending',
         logoLabel: _initials(businessName),
+        cnic: cnic.trim(),
+        bankName: bankName.trim(),
+        accountTitle: accountTitle.trim(),
+        accountNumber: accountNumber.trim(),
+        iban: iban.trim(),
+        registeredAt: now,
+        history: [
+          VendorHistoryEntry(
+            at: now,
+            action: 'registered',
+            actorId: uid,
+            actorName: ownerName.trim(),
+            detail: 'Vendor account created and waiting for Super Admin approval.',
+          ),
+        ],
       );
       await _vendors.doc(uid).set(vendor.toJson());
       await _users.doc(uid).set({
@@ -192,8 +281,17 @@ class FirebaseAuthRepository implements AuthRepository {
         'email': email.trim(),
         'phone': phone.trim(),
         'avatarLabel': _initials(ownerName),
-        'city': 'San Francisco',
+        'city': 'Karachi',
         'role': 'vendor',
+      });
+      await _db.collection('notifications').add({
+        'title': 'Application received',
+        'body':
+            'Your vendor account is under review. You will be able to sell on the platform after Super Admin approval.',
+        'createdAt': now.toIso8601String(),
+        'recipientId': uid,
+        'type': 'vendor_status',
+        'read': false,
       });
       await MazonnFirebase.seedCatalogIfNeeded();
       return vendor;
@@ -215,7 +313,7 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> updateUserProfile(AppUser user) async {
     if (!MazonnFirebase.isReady) return;
-    await _users.doc(user.id).set({...user.toJson(), 'role': 'user'}, SetOptions(merge: true));
+    await _users.doc(user.id).set({...user.toJson(), 'role': user.role}, SetOptions(merge: true));
   }
 
   @override
@@ -270,7 +368,9 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<Vendor?> _readVendor(String uid) async {
     final snapshot = await _vendors.doc(uid).get();
     if (!snapshot.exists || snapshot.data() == null) return null;
-    return Vendor.fromJson(snapshot.data()!);
+    final data = Map<String, dynamic>.from(snapshot.data()!);
+    data['id'] = data['id'] ?? uid;
+    return Vendor.fromJson(data);
   }
 
   String _initials(String value) {
@@ -297,9 +397,11 @@ class FirebaseAuthRepository implements AuthRepository {
 
   String _googleMessage(GoogleSignInException error) {
     if (error.code == GoogleSignInExceptionCode.clientConfigurationError ||
+        error.code == GoogleSignInExceptionCode.providerConfigurationError ||
         error.description?.contains('ApiException: 10') == true ||
-        error.description?.contains('DEVELOPER_ERROR') == true) {
-      return 'Google sign-in is not set up yet. Add SHA-1, google-services.json, and your Web client ID in Firebase.';
+        error.description?.contains('DEVELOPER_ERROR') == true ||
+        error.description?.contains('serverClientId') == true) {
+      return 'Google sign-in is missing its Android setup. Fully restart the app after google-services.json is updated.';
     }
     return error.description ?? 'Google sign-in failed. Please try again.';
   }

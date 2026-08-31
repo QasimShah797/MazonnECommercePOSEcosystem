@@ -30,6 +30,7 @@ class UserShell extends StatelessWidget {
           boxShadow: MazonnShadows.nav,
         ),
         child: SafeArea(
+          top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
             child: Row(
@@ -42,27 +43,32 @@ class UserShell extends StatelessWidget {
                     onTap: () => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Badge(
-                            isLabelVisible: i == 2 && cartCount > 0,
-                            backgroundColor: MazonnColors.gold,
-                            label: Text('$cartCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                            child: Icon(
-                              selected ? dest.selected : dest.icon,
-                              color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Badge(
+                              isLabelVisible: i == 2 && cartCount > 0,
+                              backgroundColor: MazonnColors.gold,
+                              label: Text('$cartCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                              child: Icon(
+                                selected ? dest.selected : dest.icon,
+                                color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            dest.label,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
-                                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                ),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              dest.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
+                                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -96,6 +102,7 @@ class VendorShell extends StatelessWidget {
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(color: MazonnColors.white, boxShadow: MazonnShadows.nav),
         child: SafeArea(
+          top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
             child: Row(
@@ -108,23 +115,27 @@ class VendorShell extends StatelessWidget {
                     onTap: () => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            selected ? dest.selected : dest.icon,
-                            color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            dest.label,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
-                                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                ),
-                          ),
-                        ],
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              selected ? dest.selected : dest.icon,
+                              color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              dest.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: selected ? MazonnColors.noir : MazonnColors.stoneLight,
+                                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

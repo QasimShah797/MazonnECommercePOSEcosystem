@@ -37,4 +37,20 @@ abstract final class RouteNames {
   static const String vendorProfile = '/studio/profile';
   static const String vendorEditProfile = '/studio/profile/edit';
   static const String vendorSettings = '/studio/settings';
+
+  static const String adminLogin = '/admin/login';
+  static const String adminHome = '/admin';
+  static const String adminVendors = '/admin/vendors';
+  static const String adminProducts = '/admin/products';
+  static const String adminCategories = '/admin/categories';
+  static const String adminBrands = '/admin/brands';
+  static const String adminOrders = '/admin/orders';
+  static const String adminCustomers = '/admin/customers';
+  static const String adminCoupons = '/admin/coupons';
+  static const String adminBulk = '/admin/bulk-discounts';
+  static const String adminReports = '/admin/reports';
+  static const String adminDisputes = '/admin/disputes';
+  static const String adminNotifications = '/admin/notifications';
+  static const String adminSettings = '/admin/settings';
+  static const String adminSearch = '/admin/search';
 }

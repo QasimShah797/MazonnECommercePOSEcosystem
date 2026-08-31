@@ -7,8 +7,8 @@ import '../../../core/theme/mazonn_metrics.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/order.dart';
 import '../../../shared/widgets/mazonn_button.dart';
+import '../../../shared/widgets/mazonn_image.dart';
 import '../../../shared/widgets/mazonn_ui.dart';
-import '../../../shared/widgets/mazonn_visual.dart';
 import '../controllers/order_controller.dart';
 
 class OrdersScreen extends StatelessWidget {
@@ -18,7 +18,7 @@ class OrdersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final orders = context.watch<OrderController>();
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -31,6 +31,7 @@ class OrdersScreen extends StatelessWidget {
             indicatorColor: MazonnColors.gold,
             tabs: [
               Tab(text: 'All'),
+              Tab(text: 'Pending'),
               Tab(text: 'Processing'),
               Tab(text: 'Shipped'),
               Tab(text: 'Delivered'),
@@ -41,6 +42,7 @@ class OrdersScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             _OrderList(orders: orders.orders),
+            _OrderList(orders: [...orders.byStatus(OrderStatus.pending), ...orders.byStatus(OrderStatus.rejected)]),
             _OrderList(orders: orders.byStatus(OrderStatus.processing)),
             _OrderList(orders: orders.byStatus(OrderStatus.shipped)),
             _OrderList(orders: orders.byStatus(OrderStatus.delivered)),
@@ -81,10 +83,12 @@ class OrderCard extends StatelessWidget {
   final bool showVendorActions;
 
   Color get _color => switch (order.status) {
+        OrderStatus.pending => MazonnColors.stone,
         OrderStatus.processing => MazonnColors.warning,
         OrderStatus.shipped => MazonnColors.info,
         OrderStatus.delivered => MazonnColors.success,
         OrderStatus.cancelled => MazonnColors.error,
+        OrderStatus.rejected => MazonnColors.error,
       };
 
   @override
@@ -117,7 +121,8 @@ class OrderCard extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, i) => SizedBox(
                 width: 52,
-                child: MazonnVisual(
+                child: MazonnImage(
+                  url: order.items[i].imageUrl,
                   seed: order.items[i].visualSeed,
                   monogram: '',
                 ),
@@ -179,7 +184,11 @@ class OrderDetailsScreen extends StatelessWidget {
               leading: SizedBox(
                 width: 48,
                 height: 48,
-                child: MazonnVisual(seed: item.visualSeed, monogram: ''),
+                child: MazonnImage(
+                  url: item.imageUrl,
+                  seed: item.visualSeed,
+                  monogram: '',
+                ),
               ),
               title: Text(item.name),
               subtitle: Text('${item.brand} · ×${item.quantity}'),
@@ -190,7 +199,11 @@ class OrderDetailsScreen extends StatelessWidget {
           Text('Deliver to ${order.addressLabel}', style: Theme.of(context).textTheme.titleSmall),
           Text(order.addressLine),
           const SizedBox(height: 12),
-          Text('${order.deliveryMethod} · ${order.paymentMethod}'),
+          Text('${order.vendorName.isEmpty ? '' : '${order.vendorName} · '}${order.deliveryMethod} · ${order.paymentMethod}'),
+          const SizedBox(height: 8),
+          Text('Subtotal ${MazonnFormatters.money(order.subtotal)}'),
+          Text('Discount ${MazonnFormatters.money(order.discount)}'),
+          Text('Delivery ${MazonnFormatters.money(order.deliveryFee)}'),
           const SizedBox(height: 16),
           Text('Total ${MazonnFormatters.money(order.total)}', style: Theme.of(context).textTheme.headlineSmall),
         ],
@@ -211,10 +224,12 @@ class OrderTrackingScreen extends StatelessWidget {
     }
     final steps = ['Placed', 'Processing', 'Shipped', 'Delivered'];
     final current = switch (order.status) {
+      OrderStatus.pending => 0,
       OrderStatus.processing => 1,
       OrderStatus.shipped => 2,
       OrderStatus.delivered => 3,
       OrderStatus.cancelled => 0,
+      OrderStatus.rejected => 0,
     };
     return Scaffold(
       appBar: const MazonnAppBar(title: 'Track order'),
@@ -229,6 +244,8 @@ class OrderTrackingScreen extends StatelessWidget {
             const SizedBox(height: 28),
             if (order.status == OrderStatus.cancelled)
               const Text('This order was cancelled.')
+            else if (order.status == OrderStatus.rejected)
+              const Text('This order was rejected by the vendor.')
             else
               ...List.generate(steps.length, (i) {
                 final done = i <= current;

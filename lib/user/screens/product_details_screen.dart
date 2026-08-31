@@ -5,10 +5,11 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/mazonn_colors.dart';
 import '../../../core/theme/mazonn_metrics.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/bulk_pricing.dart';
 import '../../../models/review.dart';
 import '../../../shared/widgets/mazonn_button.dart';
+import '../../../shared/widgets/mazonn_image.dart';
 import '../../../shared/widgets/mazonn_ui.dart';
-import '../../../shared/widgets/mazonn_visual.dart';
 import '../../../shared/widgets/product_card.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/catalog_controller.dart';
@@ -51,6 +52,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final related = catalog.related(product);
     _color ??= product.colors.isNotEmpty ? product.colors.first : null;
     _size ??= product.sizes.isNotEmpty ? product.sizes.first : null;
+    final quote = product.quote(_qty);
+    final next = PricingEngine.nextRule(product.bulkPricing, _qty);
+    final images = product.displayImageUrls;
 
     return Scaffold(
       appBar: AppBar(
@@ -66,37 +70,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           Expanded(
             child: ListView(
               children: [
-                SizedBox(
-                  height: 360,
-                  child: PageView.builder(
-                    itemCount: 3,
-                    onPageChanged: (i) => setState(() => _image = i),
-                    itemBuilder: (context, i) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: MazonnVisual(
-                        seed: product.visualSeed + i,
-                        categoryId: product.categoryId,
-                        monogram: product.brand.substring(0, 1),
-                        borderRadius: BorderRadius.circular(MazonnRadius.lg),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    3,
-                    (i) => Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: i == _image ? 16 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: i == _image ? MazonnColors.noir : MazonnColors.linen,
-                        borderRadius: MazonnRadius.pillAll,
-                      ),
-                    ),
-                  ),
+                MazonnImageGallery(
+                  urls: images,
+                  index: _image,
+                  onChanged: (i) => setState(() => _image = i),
+                  seed: product.visualSeed,
+                  categoryId: product.categoryId,
+                  monogram: product.brand.substring(0, 1),
+                  onOpen: () => _openZoom(context, images),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -184,7 +165,48 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           QuantitySelector(value: _qty, onChanged: (v) => setState(() => _qty = v)),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
+                      if (product.bulkPricing.where((r) => r.active).isNotEmpty) ...[
+                        Text('BULK PRICING', style: Theme.of(context).textTheme.titleSmall),
+                        const SizedBox(height: 8),
+                        ...product.bulkPricing.where((r) => r.active).map((r) {
+                          final off = r.discountType == DiscountType.percent
+                              ? '${r.discountValue.toStringAsFixed(0)}% OFF'
+                              : '${MazonnFormatters.money(r.discountValue)} OFF';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text('Buy ${r.minQty}+ → $off', style: Theme.of(context).textTheme.bodyMedium),
+                          );
+                        }),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(color: MazonnColors.cream, borderRadius: MazonnRadius.card),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Quantity: $_qty', style: Theme.of(context).textTheme.titleSmall),
+                              Text('Original: ${MazonnFormatters.money(product.price)} × $_qty'),
+                              if (quote.appliedRule != null)
+                                Text(
+                                  'Bulk discount: ${quote.appliedRule!.discountType == DiscountType.percent ? '${quote.appliedRule!.discountValue.toStringAsFixed(0)}%' : MazonnFormatters.money(quote.appliedRule!.discountValue)}',
+                                ),
+                              Text('Discount: ${MazonnFormatters.money(quote.discount)}'),
+                              Text('Final: ${MazonnFormatters.money(quote.total)}', style: Theme.of(context).textTheme.titleMedium),
+                              if (next != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    'Buy ${next.minQty - _qty} more to unlock ${next.discountValue.toStringAsFixed(0)}${next.discountType == DiscountType.percent ? '%' : ''} OFF',
+                                    style: const TextStyle(color: MazonnColors.goldDark),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _InfoTile(
                         icon: Icons.storefront_outlined,
                         title: product.vendorName,
@@ -292,6 +314,34 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openZoom(BuildContext context, List<String> urls) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: AspectRatio(
+                aspectRatio: 0.8,
+                child: MazonnImage(
+                  url: urls.isEmpty ? null : urls[_image.clamp(0, urls.isEmpty ? 0 : urls.length - 1)],
+                  seed: _image,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+            ),
+          ],
+        ),
       ),
     );
   }

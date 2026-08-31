@@ -10,6 +10,10 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<AppUser> loginUser({required String email, required String password}) async {
     await _delay();
+    if (email.trim().toLowerCase() == AppConstants.demoAdminEmail &&
+        password == AppConstants.demoAdminPassword) {
+      return MockCatalog.demoAdmin;
+    }
     if (email.trim().toLowerCase() == AppConstants.demoUserEmail &&
         password == AppConstants.demoUserPassword) {
       return MockCatalog.demoUser;
@@ -63,8 +67,10 @@ class MockAuthRepository implements AuthRepository {
       email: email.trim(),
       phone: '+1 415 555 0200',
       category: 'Fashion',
-      address: 'San Francisco, CA',
+      address: 'Karachi, Pakistan',
       logoLabel: 'MP',
+      approvalStatus: 'pending',
+      registeredAt: DateTime.now(),
     );
   }
 
@@ -77,6 +83,11 @@ class MockAuthRepository implements AuthRepository {
     required String password,
     required String category,
     required String address,
+    String cnic = '',
+    String bankName = '',
+    String accountTitle = '',
+    String accountNumber = '',
+    String iban = '',
   }) async {
     await _delay();
     return Vendor(
@@ -88,6 +99,21 @@ class MockAuthRepository implements AuthRepository {
       category: category,
       address: address.trim(),
       logoLabel: businessName.trim().isEmpty ? 'V' : businessName.trim()[0].toUpperCase(),
+      approvalStatus: 'pending',
+      cnic: cnic.trim(),
+      bankName: bankName.trim(),
+      accountTitle: accountTitle.trim(),
+      accountNumber: accountNumber.trim(),
+      iban: iban.trim(),
+      registeredAt: DateTime.now(),
+      history: [
+        VendorHistoryEntry(
+          at: DateTime.now(),
+          action: 'registered',
+          actorName: ownerName.trim(),
+          detail: 'Vendor account created and waiting for Super Admin approval.',
+        ),
+      ],
     );
   }
 

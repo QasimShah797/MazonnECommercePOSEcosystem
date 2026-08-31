@@ -2,16 +2,17 @@ import 'package:intl/intl.dart';
 
 abstract final class MazonnFormatters {
   static final NumberFormat _currency = NumberFormat.currency(
-    symbol: '\$',
-    decimalDigits: 2,
+    locale: 'en_PK',
+    symbol: 'Rs ',
+    decimalDigits: 0,
   );
 
   static String money(num value) => _currency.format(value);
 
-  static String date(DateTime value) => DateFormat('dd MMM yyyy').format(value);
+  static String date(DateTime value) => DateFormat('dd-MM-yyyy').format(value);
 
   static String dateTime(DateTime value) =>
-      DateFormat('dd MMM yyyy · HH:mm').format(value);
+      DateFormat('dd-MM-yyyy · HH:mm').format(value);
 
   static String compactCount(int value) {
     if (value >= 1000) {

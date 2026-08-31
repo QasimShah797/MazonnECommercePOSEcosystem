@@ -5,7 +5,9 @@ class AppUser {
     required this.email,
     required this.phone,
     this.avatarLabel = 'S',
-    this.city = 'San Francisco',
+    this.city = 'Karachi',
+    this.role = 'user',
+    this.suspended = false,
   });
 
   final String id;
@@ -14,6 +16,8 @@ class AppUser {
   final String phone;
   final String avatarLabel;
   final String city;
+  final String role;
+  final bool suspended;
 
   String get firstName => fullName.split(' ').first;
 
@@ -22,6 +26,8 @@ class AppUser {
     String? email,
     String? phone,
     String? city,
+    String? role,
+    bool? suspended,
   }) {
     return AppUser(
       id: id,
@@ -30,6 +36,8 @@ class AppUser {
       phone: phone ?? this.phone,
       avatarLabel: avatarLabel,
       city: city ?? this.city,
+      role: role ?? this.role,
+      suspended: suspended ?? this.suspended,
     );
   }
 
@@ -40,14 +48,18 @@ class AppUser {
         'phone': phone,
         'avatarLabel': avatarLabel,
         'city': city,
+        'role': role,
+        'suspended': suspended,
       };
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id'] as String,
         fullName: json['fullName'] as String,
         email: json['email'] as String,
-        phone: json['phone'] as String,
+        phone: json['phone'] as String? ?? '',
         avatarLabel: json['avatarLabel'] as String? ?? 'M',
-        city: json['city'] as String? ?? 'San Francisco',
+        city: json['city'] as String? ?? 'Karachi',
+        role: json['role'] as String? ?? 'user',
+        suspended: json['suspended'] as bool? ?? false,
       );
 }

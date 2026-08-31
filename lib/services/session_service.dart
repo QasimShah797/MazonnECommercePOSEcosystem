@@ -41,7 +41,8 @@ class SessionService {
   }
 
   Future<void> saveUser(AppUser user) async {
-    await _prefs.setString(StorageKeys.sessionRole, AppRole.user.name);
+    final role = user.role == 'admin' ? AppRole.admin.name : AppRole.user.name;
+    await _prefs.setString(StorageKeys.sessionRole, role);
     await _prefs.setString(StorageKeys.sessionUser, jsonEncode(user.toJson()));
     await _prefs.remove(StorageKeys.sessionVendor);
   }
@@ -109,4 +110,16 @@ class SessionService {
         StorageKeys.vendorProducts,
         jsonEncode(products.map((e) => e.toJson()).toList()),
       );
+
+  Map<String, List<String>> readSearchAliasOverrides() {
+    final raw = _prefs.getString(StorageKeys.searchSynonyms);
+    if (raw == null) return {};
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    return {
+      for (final e in map.entries) e.key: List<String>.from(e.value as List? ?? const []),
+    };
+  }
+
+  Future<void> writeSearchAliasOverrides(Map<String, List<String>> aliases) =>
+      _prefs.setString(StorageKeys.searchSynonyms, jsonEncode(aliases));
 }

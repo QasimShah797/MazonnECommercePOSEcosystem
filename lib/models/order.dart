@@ -8,6 +8,8 @@ class OrderItem {
     required this.visualSeed,
     this.color,
     this.size,
+    this.imageUrl,
+    this.bulkDiscount = 0,
   });
 
   final String productId;
@@ -18,8 +20,11 @@ class OrderItem {
   final int visualSeed;
   final String? color;
   final String? size;
+  final String? imageUrl;
+  final double bulkDiscount;
 
-  double get lineTotal => price * quantity;
+  double get lineSubtotal => price * quantity;
+  double get lineTotal => lineSubtotal - bulkDiscount;
 
   Map<String, dynamic> toJson() => {
         'productId': productId,
@@ -30,6 +35,8 @@ class OrderItem {
         'visualSeed': visualSeed,
         'color': color,
         'size': size,
+        'imageUrl': imageUrl,
+        'bulkDiscount': bulkDiscount,
       };
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
@@ -37,25 +44,44 @@ class OrderItem {
         name: json['name'] as String,
         brand: json['brand'] as String,
         price: (json['price'] as num).toDouble(),
-        quantity: json['quantity'] as int,
-        visualSeed: json['visualSeed'] as int? ?? 1,
+        quantity: (json['quantity'] as num).toInt(),
+        visualSeed: (json['visualSeed'] as num?)?.toInt() ?? 1,
         color: json['color'] as String?,
         size: json['size'] as String?,
+        imageUrl: json['imageUrl'] as String?,
+        bulkDiscount: (json['bulkDiscount'] as num?)?.toDouble() ?? 0,
       );
 }
 
-enum OrderStatus { processing, shipped, delivered, cancelled }
+enum OrderStatus { pending, processing, shipped, delivered, cancelled, rejected }
 
 extension OrderStatusX on OrderStatus {
   String get label => switch (this) {
+        OrderStatus.pending => 'Pending',
         OrderStatus.processing => 'Processing',
         OrderStatus.shipped => 'Shipped',
         OrderStatus.delivered => 'Delivered',
         OrderStatus.cancelled => 'Cancelled',
+        OrderStatus.rejected => 'Rejected',
       };
 
-  static OrderStatus fromName(String name) =>
-      OrderStatus.values.firstWhere((e) => e.name == name, orElse: () => OrderStatus.processing);
+  static OrderStatus fromName(String name) => OrderStatus.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => OrderStatus.pending,
+      );
+}
+
+abstract final class OrderTransitions {
+  static const Map<OrderStatus, Set<OrderStatus>> allowed = {
+    OrderStatus.pending: {OrderStatus.processing, OrderStatus.rejected, OrderStatus.cancelled},
+    OrderStatus.processing: {OrderStatus.shipped, OrderStatus.cancelled},
+    OrderStatus.shipped: {OrderStatus.delivered},
+    OrderStatus.delivered: {},
+    OrderStatus.cancelled: {},
+    OrderStatus.rejected: {},
+  };
+
+  static bool canTransition(OrderStatus from, OrderStatus to) => allowed[from]?.contains(to) ?? false;
 }
 
 class Order {
@@ -73,8 +99,13 @@ class Order {
     required this.deliveryMethod,
     required this.paymentMethod,
     required this.vendorId,
+    this.vendorName = '',
+    this.customerName = '',
     this.trackingCode,
     this.customerId = '',
+    this.couponDiscount = 0,
+    this.disputeStatus = 'none',
+    this.disputeNote = '',
   });
 
   final String id;
@@ -90,12 +121,25 @@ class Order {
   final String deliveryMethod;
   final String paymentMethod;
   final String vendorId;
+  final String vendorName;
+  final String customerName;
   final String? trackingCode;
   final String customerId;
+  final double couponDiscount;
+  final String disputeStatus;
+  final String disputeNote;
 
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
-  Order copyWith({OrderStatus? status, String? trackingCode, String? customerId}) {
+  Order copyWith({
+    OrderStatus? status,
+    String? trackingCode,
+    String? customerId,
+    String? customerName,
+    String? vendorName,
+    String? disputeStatus,
+    String? disputeNote,
+  }) {
     return Order(
       id: id,
       placedAt: placedAt,
@@ -110,8 +154,13 @@ class Order {
       deliveryMethod: deliveryMethod,
       paymentMethod: paymentMethod,
       vendorId: vendorId,
+      vendorName: vendorName ?? this.vendorName,
+      customerName: customerName ?? this.customerName,
       trackingCode: trackingCode ?? this.trackingCode,
       customerId: customerId ?? this.customerId,
+      couponDiscount: couponDiscount,
+      disputeStatus: disputeStatus ?? this.disputeStatus,
+      disputeNote: disputeNote ?? this.disputeNote,
     );
   }
 
@@ -129,8 +178,13 @@ class Order {
         'deliveryMethod': deliveryMethod,
         'paymentMethod': paymentMethod,
         'vendorId': vendorId,
+        'vendorName': vendorName,
+        'customerName': customerName,
         'trackingCode': trackingCode,
         'customerId': customerId,
+        'couponDiscount': couponDiscount,
+        'disputeStatus': disputeStatus,
+        'disputeNote': disputeNote,
       };
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
@@ -149,7 +203,12 @@ class Order {
         deliveryMethod: json['deliveryMethod'] as String,
         paymentMethod: json['paymentMethod'] as String,
         vendorId: json['vendorId'] as String,
+        vendorName: json['vendorName'] as String? ?? '',
+        customerName: json['customerName'] as String? ?? '',
         trackingCode: json['trackingCode'] as String?,
         customerId: json['customerId'] as String? ?? '',
+        couponDiscount: (json['couponDiscount'] as num?)?.toDouble() ?? 0,
+        disputeStatus: json['disputeStatus'] as String? ?? 'none',
+        disputeNote: json['disputeNote'] as String? ?? '',
       );
 }

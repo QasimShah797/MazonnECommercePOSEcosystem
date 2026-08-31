@@ -6,6 +6,7 @@ import '../../../core/theme/mazonn_colors.dart';
 import '../../../core/theme/mazonn_metrics.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/catalog_extras.dart';
+import '../../../models/order.dart';
 import '../../../shared/controllers/auth_controller.dart';
 import '../../../shared/widgets/mazonn_button.dart';
 import '../../../shared/widgets/mazonn_ui.dart';
@@ -31,8 +32,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final addresses = context.watch<AddressController>();
     final address = addresses.selected;
     final express = _delivery == DeliveryOption.express;
+    final groups = cart.groups(express: express);
     final deliveryFee = cart.deliveryFee(express);
-    final total = cart.subtotal + deliveryFee;
+    final total = cart.total(express: express);
 
     return Scaffold(
       appBar: const MazonnAppBar(title: 'Checkout'),
@@ -41,97 +43,115 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         children: [
           _sectionTitle(context, 'Address'),
           if (address == null)
-            const Text('Add a delivery address to continue.')
+            _card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Add your Pakistan delivery location to place an order.'),
+                  TextButton(
+                    onPressed: () => context.push('/shop/profile/addresses/form'),
+                    child: const Text('Add address'),
+                  ),
+                ],
+              ),
+            )
           else
             _card(
-              child: RadioGroup<String>(
-                groupValue: address.id,
-                onChanged: (id) {
-                  if (id != null) addresses.select(id);
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ...addresses.addresses.map(
-                      (a) => RadioListTile<String>(
-                        contentPadding: EdgeInsets.zero,
-                        value: a.id,
-                        title: Text('${a.label} · ${a.fullName}'),
-                        subtitle: Text(a.summary),
-                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...addresses.addresses.map(
+                    (a) => RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      value: a.id,
+                      groupValue: address.id,
+                      onChanged: (id) {
+                        if (id != null) addresses.select(id);
+                      },
+                      title: Text('${a.label} · ${a.fullName}'),
+                      subtitle: Text(a.summary),
                     ),
-                    TextButton(
-                      onPressed: () => context.push('/shop/profile/addresses'),
-                      child: const Text('Add or edit addresses'),
-                    ),
-                  ],
-                ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/shop/profile/addresses/form'),
+                    child: const Text('Add another address'),
+                  ),
+                ],
               ),
             ),
           const SizedBox(height: 18),
           _sectionTitle(context, 'Delivery'),
           _card(
-            child: RadioGroup<DeliveryOption>(
-              groupValue: _delivery,
-              onChanged: (v) => setState(() => _delivery = v ?? _delivery),
-              child: Column(
-                children: DeliveryOption.values
-                    .map(
-                      (option) => RadioListTile<DeliveryOption>(
-                        contentPadding: EdgeInsets.zero,
-                        value: option,
-                        title: Text(option.label),
-                        subtitle: Text(
-                          '${option.subtitle} · ${MazonnFormatters.money(cart.deliveryFee(option == DeliveryOption.express))}',
-                        ),
+            child: Column(
+              children: DeliveryOption.values
+                  .map(
+                    (option) => RadioListTile<DeliveryOption>(
+                      contentPadding: EdgeInsets.zero,
+                      value: option,
+                      groupValue: _delivery,
+                      onChanged: (v) => setState(() => _delivery = v ?? _delivery),
+                      title: Text(option.label),
+                      subtitle: Text(
+                        '${option.subtitle} · ${MazonnFormatters.money(cart.deliveryFee(option == DeliveryOption.express))}',
                       ),
-                    )
-                    .toList(),
-              ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
           const SizedBox(height: 18),
           _sectionTitle(context, 'Payment'),
           _card(
-            child: RadioGroup<PaymentOption>(
-              groupValue: _payment,
-              onChanged: (v) => setState(() => _payment = v ?? _payment),
-              child: Column(
-                children: PaymentOption.values
-                    .map(
-                      (option) => RadioListTile<PaymentOption>(
-                        contentPadding: EdgeInsets.zero,
-                        value: option,
-                        title: Text(option.label),
-                        subtitle: Text(option.subtitle),
-                      ),
-                    )
-                    .toList(),
-              ),
+            child: Column(
+              children: PaymentOption.values
+                  .map(
+                    (option) => RadioListTile<PaymentOption>(
+                      contentPadding: EdgeInsets.zero,
+                      value: option,
+                      groupValue: _payment,
+                      onChanged: (v) => setState(() => _payment = v ?? _payment),
+                      title: Text(option.label),
+                      subtitle: Text(option.subtitle),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
           const SizedBox(height: 18),
           _sectionTitle(context, 'Order summary'),
+          ...groups.map(
+            (group) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(group.vendorName, style: Theme.of(context).textTheme.titleSmall),
+                    ...group.items.map(
+                      (e) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text('${e.product.name}  ×${e.quantity}')),
+                            Text(MazonnFormatters.money(e.lineTotal)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 20),
+                    _kv(context, 'Subtotal', MazonnFormatters.money(group.merchandiseSubtotal)),
+                    _kv(context, 'Bulk discount', MazonnFormatters.money(group.bulkDiscount)),
+                    _kv(context, 'Delivery', MazonnFormatters.money(group.deliveryFee)),
+                    _kv(context, 'Vendor total', MazonnFormatters.money(group.vendorTotal), strong: true),
+                  ],
+                ),
+              ),
+            ),
+          ),
           _card(
             child: Column(
               children: [
-                ...cart.items.map(
-                  (e) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text('${e.product.name}  ×${e.quantity}')),
-                        Text(MazonnFormatters.money(e.lineTotal)),
-                      ],
-                    ),
-                  ),
-                ),
-                const Divider(height: 20),
-                _kv(context, 'Subtotal', MazonnFormatters.money(cart.subtotal)),
-                _kv(context, 'Discount', MazonnFormatters.money(cart.discount)),
-                _kv(context, 'Delivery', MazonnFormatters.money(deliveryFee)),
-                const SizedBox(height: 6),
-                _kv(context, 'Total', MazonnFormatters.money(total), strong: true),
+                _kv(context, 'Grand total', MazonnFormatters.money(total), strong: true),
               ],
             ),
           ),
@@ -144,26 +164,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 : () async {
                     setState(() => _placing = true);
                     try {
-                      final order = await context.read<OrderController>().place(
+                      final orders = await context.read<OrderController>().place(
                             items: cart.items,
                             address: address,
                             delivery: _delivery,
                             payment: _payment,
-                            subtotal: cart.subtotal,
-                            discount: cart.discount,
+                            subtotal: cart.merchandiseSubtotal,
+                            discount: cart.bulkDiscount,
                             deliveryFee: deliveryFee,
                             total: total,
                             customerId: context.read<AuthController>().user?.id ?? '',
+                            customerName: context.read<AuthController>().user?.fullName ?? '',
+                            groups: groups,
                           );
                       await cart.clear();
                       if (!context.mounted) return;
-                      context.go('/shop/order-success', extra: order.id);
-                    } catch (_) {
+                      context.go('/shop/order-success', extra: orders.first.id);
+                    } catch (e) {
                       if (!context.mounted) return;
                       setState(() => _placing = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Could not place this order. Please try again.')),
-                      );
+                      final message = e is StateError ? e.message : 'Could not place this order. Please try again.';
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
                     }
                   },
           ),
@@ -208,6 +229,8 @@ class OrderSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<OrderController>();
+    final order = orderId == null ? controller.lastPlaced : controller.byId(orderId!);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -222,13 +245,28 @@ class OrderSuccessScreen extends StatelessWidget {
                 child: const Icon(Icons.check_rounded, size: 42, color: MazonnColors.success),
               ),
               const SizedBox(height: 24),
-              Text('Order placed', style: Theme.of(context).textTheme.displaySmall),
+              Text('Order confirmed', style: Theme.of(context).textTheme.displaySmall),
               const SizedBox(height: 8),
-              Text(
-                'Thank you. ${orderId ?? 'Your order'} is being prepared by the atelier.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: MazonnColors.stone),
-              ),
+              if (order == null)
+                Text(
+                  'Thank you. ${orderId ?? 'Your order'} is awaiting vendor confirmation.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: MazonnColors.stone),
+                )
+              else ...[
+                Text('#${order.id}', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(
+                  '${order.vendorName}\n${order.itemCount} items · ${order.paymentMethod}\n${order.addressLine}\nStatus: ${order.status.label}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: MazonnColors.stone),
+                ),
+                const SizedBox(height: 16),
+                Text('Subtotal ${MazonnFormatters.money(order.subtotal)}'),
+                Text('Discount ${MazonnFormatters.money(order.discount)}'),
+                Text('Delivery ${MazonnFormatters.money(order.deliveryFee)}'),
+                Text('Total ${MazonnFormatters.money(order.total)}', style: Theme.of(context).textTheme.titleMedium),
+              ],
               const Spacer(),
               MazonnButton(label: 'Track order', onPressed: () => context.go('/shop/orders')),
               const SizedBox(height: 12),

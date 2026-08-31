@@ -6,8 +6,8 @@ import '../../../core/theme/mazonn_colors.dart';
 import '../../../core/theme/mazonn_metrics.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/mazonn_button.dart';
+import '../../../shared/widgets/mazonn_image.dart';
 import '../../../shared/widgets/mazonn_ui.dart';
-import '../../../shared/widgets/mazonn_visual.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/wishlist_controller.dart';
 
@@ -50,11 +50,7 @@ class CartScreen extends StatelessWidget {
                             SizedBox(
                               width: 88,
                               height: 104,
-                              child: MazonnVisual(
-                                seed: item.product.visualSeed,
-                                categoryId: item.product.categoryId,
-                                monogram: item.product.brand.substring(0, 1),
-                              ),
+                              child: MazonnImage.product(item.product),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -70,7 +66,9 @@ class CartScreen extends StatelessWidget {
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
                                   const SizedBox(height: 6),
-                                  Text(MazonnFormatters.money(item.product.price), style: Theme.of(context).textTheme.titleSmall),
+                                  Text(MazonnFormatters.money(item.lineTotal), style: Theme.of(context).textTheme.titleSmall),
+                                  if (item.bulkDiscount > 0)
+                                    Text('Bulk save ${MazonnFormatters.money(item.bulkDiscount)}', style: Theme.of(context).textTheme.bodySmall),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
@@ -106,10 +104,11 @@ class CartScreen extends StatelessWidget {
                   decoration: const BoxDecoration(color: MazonnColors.white, boxShadow: MazonnShadows.nav),
                   child: SafeArea(
                     top: false,
+                    bottom: false,
                     child: Column(
                       children: [
-                        _row(context, 'Subtotal', MazonnFormatters.money(cart.subtotal)),
-                        _row(context, 'Discount saved', MazonnFormatters.money(cart.discount)),
+                        _row(context, 'Subtotal', MazonnFormatters.money(cart.merchandiseSubtotal)),
+                        _row(context, 'Bulk discount', MazonnFormatters.money(cart.bulkDiscount)),
                         _row(context, 'Delivery from', MazonnFormatters.money(cart.deliveryFee(false))),
                         const Divider(height: 20),
                         _row(context, 'Total', MazonnFormatters.money(cart.total(express: false)), strong: true),

@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../models/address.dart';
 import '../../models/catalog_extras.dart';
 import '../../models/category.dart';
+import '../../models/bulk_pricing.dart';
 import '../../models/order.dart';
 import '../../models/product.dart';
+import 'demo_media.dart';
 import '../../models/review.dart';
 import '../../models/user.dart';
 import '../../models/vendor.dart';
@@ -16,9 +18,19 @@ abstract final class MockCatalog {
     id: 'user_sophie',
     fullName: 'Sophie Laurent',
     email: 'sophie@mazonn.app',
-    phone: '+1 415 555 0188',
+    phone: '+92 300 5550188',
     avatarLabel: 'SL',
-    city: 'San Francisco',
+    city: 'Karachi',
+  );
+
+  static const AppUser demoAdmin = AppUser(
+    id: 'user_admin',
+    fullName: 'Mazonn Admin',
+    email: 'admin@mazonn.app',
+    phone: '+1 415 555 0100',
+    avatarLabel: 'MA',
+    city: 'Karachi',
+    role: 'admin',
   );
 
   static const Vendor demoVendor = Vendor(
@@ -28,7 +40,7 @@ abstract final class MockCatalog {
     email: 'atelier@mazonn.app',
     phone: '+1 415 555 2041',
     category: 'Fashion',
-    address: '128 Fillmore Street, San Francisco',
+    address: 'Shop 12, Zamzama Boulevard, Karachi',
     logoLabel: 'AN',
     bio: 'Quiet luxury essentials designed in small batches.',
   );
@@ -113,11 +125,12 @@ abstract final class MockCatalog {
   ];
 
   static const List<String> popularSearches = [
-    'Merino coat',
-    'Ceramic vase',
-    'Wireless buds',
-    'Linen set',
+    'Television',
+    'iPhone',
+    'Fridge',
     'Running shoes',
+    'Headphones',
+    'Merino coat',
   ];
 
   static Product _p({
@@ -143,15 +156,24 @@ abstract final class MockCatalog {
     bool isFlashSale = false,
     bool isRecommended = false,
     int sales = 0,
+    String? vendorIdOverride,
+    String? vendorNameOverride,
   }) {
+    final images = DemoMedia.assign(
+      productId: id,
+      name: name,
+      brand: brand,
+      description: description,
+      categoryId: categoryId,
+    );
     return Product(
       id: id,
       name: name,
       brand: brand,
       description: description,
       categoryId: categoryId,
-      vendorId: vendorId,
-      vendorName: demoVendor.businessName,
+      vendorId: vendorIdOverride ?? vendorId,
+      vendorName: vendorNameOverride ?? demoVendor.businessName,
       price: price,
       originalPrice: originalPrice,
       rating: rating,
@@ -163,6 +185,20 @@ abstract final class MockCatalog {
       sizes: sizes,
       specifications: specifications,
       badges: badges,
+      imageUrls: images.map((e) => e.url).toList(),
+      images: images,
+      searchKeywords: DemoMedia.keywordsFor(
+        name: name,
+        brand: brand,
+        description: description,
+        categoryId: categoryId,
+      ),
+      subcategory: DemoMedia.subcategoryFor(
+        name: name,
+        description: description,
+        categoryId: categoryId,
+      ),
+      bulkPricing: PricingEngine.defaultVendorTiers(),
       isFeatured: isFeatured,
       isPopular: isPopular,
       isNewArrival: isNewArrival,
@@ -734,6 +770,122 @@ abstract final class MockCatalog {
       isFeatured: true,
       sales: 331,
     ),
+    _p(
+      id: 'p29',
+      name: 'Samsung 55 Inch 4K Smart TV',
+      brand: 'Samsung',
+      description:
+          'A 55-inch 4K UHD smart television with HDR10+, built-in streaming apps, and a slim bezel for the living room.',
+      categoryId: 'electronics',
+      price: 649,
+      originalPrice: 799,
+      rating: 4.7,
+      reviewCount: 286,
+      stock: 18,
+      sku: 'SS-TV-55',
+      visualSeed: 29,
+      specifications: {'Size': '55 inch', 'Resolution': '4K UHD', 'Type': 'LED Smart TV'},
+      badges: ['SALE', 'POPULAR'],
+      isFeatured: true,
+      isPopular: true,
+      isFlashSale: true,
+      sales: 190,
+    ),
+    _p(
+      id: 'p30',
+      name: 'LG 50 Inch LED Television',
+      brand: 'LG',
+      description:
+          '50-inch LED television with webOS smart TV, crisp colour, and dual-channel speakers. Wall-mount ready.',
+      categoryId: 'electronics',
+      price: 479,
+      rating: 4.5,
+      reviewCount: 164,
+      stock: 12,
+      sku: 'LG-TV-50',
+      visualSeed: 30,
+      specifications: {'Size': '50 inch', 'Resolution': '4K UHD', 'Type': 'LED TV'},
+      badges: ['NEW'],
+      isNewArrival: true,
+      sales: 74,
+    ),
+    _p(
+      id: 'p31',
+      name: 'TCL 43 Inch Smart TV',
+      brand: 'TCL',
+      description:
+          'A compact 43-inch 4K smart TV with Google TV, voice remote, and HDR for apartments and bedrooms.',
+      categoryId: 'electronics',
+      price: 329,
+      rating: 4.4,
+      reviewCount: 98,
+      stock: 22,
+      sku: 'TCL-TV-43',
+      visualSeed: 31,
+      specifications: {'Size': '43 inch', 'Resolution': '4K UHD', 'Type': 'Smart TV'},
+      isRecommended: true,
+      sales: 61,
+    ),
+    _p(
+      id: 'p32',
+      name: 'iPhone 15 Pro',
+      brand: 'Apple',
+      description:
+          'iPhone 15 Pro with A17 Pro, ProMotion display, and a titanium frame. Dual eSIM and USB-C.',
+      categoryId: 'electronics',
+      price: 999,
+      rating: 4.8,
+      reviewCount: 640,
+      stock: 14,
+      sku: 'AP-IP15P',
+      visualSeed: 32,
+      colors: ['Natural Titanium', 'Blue Titanium'],
+      specifications: {'Storage': '256 GB', 'Display': '6.1 inch', 'Type': 'Smartphone'},
+      badges: ['POPULAR'],
+      isFeatured: true,
+      isPopular: true,
+      sales: 410,
+    ),
+    _p(
+      id: 'p33',
+      name: 'Compact Refrigerator',
+      brand: 'Hearth',
+      description:
+          'A quiet compact fridge with a freezer compartment, adjustable shelves, and a stainless door. Ideal for studios.',
+      categoryId: 'home',
+      price: 289,
+      originalPrice: 349,
+      rating: 4.3,
+      reviewCount: 52,
+      stock: 9,
+      sku: 'HR-RF-04',
+      visualSeed: 33,
+      specifications: {'Capacity': '4.4 cu ft', 'Type': 'Refrigerator'},
+      badges: ['SALE'],
+      isFlashSale: true,
+      sales: 33,
+    ),
+    _p(
+      id: 'p34',
+      name: 'Wireless Bluetooth Headphones',
+      brand: 'Lumen',
+      description:
+          'Over-ear wireless Bluetooth headphones with active noise cancelling, 30-hour battery, and a folding hinge.',
+      categoryId: 'electronics',
+      price: 159,
+      originalPrice: 199,
+      rating: 4.6,
+      reviewCount: 221,
+      stock: 27,
+      sku: 'LM-HP-220',
+      visualSeed: 34,
+      colors: ['Graphite', 'Ivory'],
+      specifications: {'Battery': '30 hours', 'Type': 'Over-ear headphones', 'Connectivity': 'Bluetooth 5.3'},
+      badges: ['SALE', 'POPULAR'],
+      isPopular: true,
+      isRecommended: true,
+      sales: 248,
+    ),
   ];
 
   static final List<Review> reviews = [
@@ -775,29 +927,7 @@ abstract final class MockCatalog {
     ),
   ];
 
-  static final List<Address> addresses = [
-    const Address(
-      id: 'a1',
-      label: 'Home',
-      fullName: 'Sophie Laurent',
-      phone: '+1 415 555 0188',
-      line1: '48 Hayes Street, Apt 4B',
-      city: 'San Francisco',
-      region: 'CA',
-      postalCode: '94102',
-      isDefault: true,
-    ),
-    const Address(
-      id: 'a2',
-      label: 'Office',
-      fullName: 'Sophie Laurent',
-      phone: '+1 415 555 0188',
-      line1: '900 Market Street, Floor 12',
-      city: 'San Francisco',
-      region: 'CA',
-      postalCode: '94103',
-    ),
-  ];
+  static const List<Address> addresses = [];
 
   static final List<Order> seedOrders = [
     Order(
@@ -829,10 +959,12 @@ abstract final class MockCatalog {
       deliveryFee: 6.5,
       total: 338.5,
       addressLabel: 'Home',
-      addressLine: '48 Hayes Street, Apt 4B, San Francisco',
+      addressLine: 'House 12, Street 7, DHA Phase 6, Karachi, Sindh, Pakistan',
       deliveryMethod: 'Standard delivery',
       paymentMethod: 'Card',
       vendorId: vendorId,
+      vendorName: demoVendor.businessName,
+      customerName: demoUser.fullName,
       trackingCode: 'MAZ-88421',
     ),
     Order(
@@ -854,7 +986,7 @@ abstract final class MockCatalog {
       deliveryFee: 0,
       total: 98,
       addressLabel: 'Home',
-      addressLine: '48 Hayes Street, Apt 4B, San Francisco',
+      addressLine: 'House 12, Street 7, DHA Phase 6, Karachi, Sindh, Pakistan',
       deliveryMethod: 'Standard delivery',
       paymentMethod: 'Mobile Wallet',
       vendorId: vendorId,
@@ -880,7 +1012,7 @@ abstract final class MockCatalog {
       deliveryFee: 6.5,
       total: 165.5,
       addressLabel: 'Office',
-      addressLine: '900 Market Street, Floor 12, San Francisco',
+      addressLine: 'Office 4, MM Alam Road, Lahore, Punjab, Pakistan',
       deliveryMethod: 'Express delivery',
       paymentMethod: 'Cash on Delivery',
       vendorId: vendorId,
@@ -904,32 +1036,42 @@ abstract final class MockCatalog {
       deliveryFee: 6.5,
       total: 34.5,
       addressLabel: 'Home',
-      addressLine: '48 Hayes Street, Apt 4B, San Francisco',
+      addressLine: 'House 12, Street 7, DHA Phase 6, Karachi, Sindh, Pakistan',
       deliveryMethod: 'Standard delivery',
       paymentMethod: 'Card',
       vendorId: vendorId,
     ),
   ];
 
-  static const List<AppNotification> notifications = [
+  static final List<AppNotification> notifications = [
     AppNotification(
       id: 'n1',
       title: 'Your order is on the way',
       body: 'MS-24081 has left the atelier and is expected Thursday.',
+      createdAt: DateTime(2026, 8, 30, 4, 20),
+      recipientId: 'user_sophie',
+      type: 'shipped',
+      orderId: 'MS-24081',
       time: '2h ago',
     ),
     AppNotification(
       id: 'n2',
       title: 'Flash hours have started',
       body: 'Selected beauty and accessories are up to 30% off until midnight.',
+      createdAt: DateTime(2026, 8, 30, 1, 10),
+      recipientId: 'user_sophie',
+      type: 'system',
       time: '5h ago',
     ),
     AppNotification(
       id: 'n3',
       title: 'Back in stock',
       body: 'Hand-Thrown Vase is available again — only a few remain.',
-      time: 'Yesterday',
+      createdAt: DateTime(2026, 8, 29, 18, 0),
+      recipientId: 'user_sophie',
+      type: 'system',
       read: true,
+      time: 'Yesterday',
     ),
   ];
 

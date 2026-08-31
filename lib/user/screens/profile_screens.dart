@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/mazonn_colors.dart';
 import '../../../core/theme/mazonn_metrics.dart';
 import '../../../core/utils/validators.dart';
-import '../../../data/mock/mock_catalog.dart';
 import '../../../models/address.dart';
 import '../../../shared/controllers/auth_controller.dart';
 import '../../../shared/widgets/mazonn_button.dart';
@@ -13,6 +13,7 @@ import '../../../shared/widgets/mazonn_text_field.dart';
 import '../../../shared/widgets/mazonn_ui.dart';
 import '../controllers/address_controller.dart';
 import '../controllers/catalog_controller.dart';
+import '../controllers/notification_controller.dart';
 import '../controllers/wishlist_controller.dart';
 import 'categories_screen.dart';
 
@@ -24,6 +25,7 @@ class ProfileScreen extends StatelessWidget {
     final user = context.watch<AuthController>().user;
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
           children: [
@@ -188,7 +190,11 @@ class AddressesScreen extends StatelessWidget {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: controller.addresses.isEmpty
-          ? const EmptyState(icon: Icons.place_outlined, title: 'No addresses', message: 'Add a place for deliveries.')
+          ? const EmptyState(
+              icon: Icons.place_outlined,
+              title: 'No addresses yet',
+              message: 'Add your own Pakistan delivery location. Pre-filled US addresses have been removed.',
+            )
           : ListView.separated(
               padding: const EdgeInsets.all(20),
               itemCount: controller.addresses.length,
@@ -200,7 +206,17 @@ class AddressesScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: MazonnRadius.card),
                   title: Text('${a.label} · ${a.fullName}'),
                   subtitle: Text(a.summary),
-                  trailing: a.isDefault ? const StatusChip(label: 'Default', color: MazonnColors.success) : null,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (a.isDefault) const StatusChip(label: 'Default', color: MazonnColors.success),
+                      IconButton(
+                        tooltip: 'Delete',
+                        onPressed: () => controller.remove(a.id),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
                   onTap: () => context.push('/shop/profile/addresses/form', extra: a),
                 );
               },
@@ -235,10 +251,10 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     _name = TextEditingController(text: a?.fullName ?? '');
     _phone = TextEditingController(text: a?.phone ?? '');
     _line = TextEditingController(text: a?.line1 ?? '');
-    _city = TextEditingController(text: a?.city ?? '');
-    _region = TextEditingController(text: a?.region ?? '');
+    _city = TextEditingController(text: a?.city ?? AppConstants.defaultCity);
+    _region = TextEditingController(text: a?.region ?? 'Sindh');
     _postal = TextEditingController(text: a?.postalCode ?? '');
-    _default = a?.isDefault ?? false;
+    _default = a?.isDefault ?? true;
   }
 
   @override
@@ -266,12 +282,37 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
           const SizedBox(height: 12),
           MazonnTextField(label: 'Phone', controller: _phone),
           const SizedBox(height: 12),
-          MazonnTextField(label: 'Address', controller: _line),
+          MazonnTextField(label: 'Street / house / area', controller: _line),
           const SizedBox(height: 12),
-          MazonnTextField(label: 'City', controller: _city),
+          DropdownButtonFormField<String>(
+            initialValue: AppConstants.pakistanCities.contains(_city.text) ? _city.text : null,
+            decoration: const InputDecoration(labelText: 'City'),
+            items: [
+              ...AppConstants.pakistanCities.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+            ],
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _city.text = v);
+            },
+          ),
           const SizedBox(height: 12),
-          MazonnTextField(label: 'Region', controller: _region),
+          MazonnTextField(label: 'City (or type your own)', controller: _city),
           const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: AppConstants.pakistanProvinces.contains(_region.text) ? _region.text : AppConstants.pakistanProvinces.first,
+            decoration: const InputDecoration(labelText: 'Province'),
+            items: AppConstants.pakistanProvinces.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _region.text = v);
+            },
+          ),
+          const SizedBox(height: 12),
+          const ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Country'),
+            subtitle: Text('Pakistan'),
+          ),
           MazonnTextField(label: 'Postal code', controller: _postal),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -292,12 +333,24 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                       city: _city.text,
                       region: _region.text,
                       postalCode: _postal.text,
-                      isDefault: _default,
+                      country: AppConstants.defaultCountry,
+                      isDefault: _default || widget.existing == null,
                     ),
                   );
               if (context.mounted) Navigator.pop(context);
             },
           ),
+          if (widget.existing != null) ...[
+            const SizedBox(height: 12),
+            MazonnButton(
+              label: 'Delete address',
+              tone: MazonnButtonTone.outline,
+              onPressed: () async {
+                await context.read<AddressController>().remove(widget.existing!.id);
+                if (context.mounted) Navigator.pop(context);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -314,9 +367,10 @@ class PaymentMethodsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: const [
-          ListTile(leading: Icon(Icons.payments_outlined), title: Text('Cash on Delivery'), subtitle: Text('Available at checkout')),
-          ListTile(leading: Icon(Icons.credit_card), title: Text('Visa · 4242'), subtitle: Text('Expires 08/28')),
-          ListTile(leading: Icon(Icons.account_balance_wallet_outlined), title: Text('Mobile Wallet'), subtitle: Text('Apple Pay, Google Pay')),
+          ListTile(leading: Icon(Icons.payments_outlined), title: Text('Cash on Delivery'), subtitle: Text('Pay in PKR when the order arrives')),
+          ListTile(leading: Icon(Icons.account_balance_wallet_outlined), title: Text('JazzCash'), subtitle: Text('Pay in Pakistani rupees')),
+          ListTile(leading: Icon(Icons.account_balance_wallet_outlined), title: Text('Easypaisa'), subtitle: Text('Pay in Pakistani rupees')),
+          ListTile(leading: Icon(Icons.credit_card), title: Text('Debit / Credit card'), subtitle: Text('Charged in PKR')),
         ],
       ),
     );
@@ -328,22 +382,52 @@ class NotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final inbox = context.watch<NotificationController>();
+    final auth = context.watch<AuthController>();
+    if (inbox.loading && inbox.items.isEmpty) {
+      return const Scaffold(appBar: MazonnAppBar(title: 'Notifications'), body: LoadingState());
+    }
     return Scaffold(
-      appBar: const MazonnAppBar(title: 'Notifications'),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(20),
-        itemCount: MockCatalog.notifications.length,
-        separatorBuilder: (_, _) => const Divider(),
-        itemBuilder: (context, i) {
-          final n = MockCatalog.notifications[i];
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(n.title),
-            subtitle: Text('${n.body}\n${n.time}'),
-            isThreeLine: true,
-          );
-        },
+      appBar: MazonnAppBar(
+        title: 'Notifications',
+        actions: [
+          if (inbox.unreadCount > 0)
+            TextButton(
+              onPressed: () => inbox.markAllRead(auth.recipientId),
+              child: const Text('Mark all read'),
+            ),
+        ],
       ),
+      body: inbox.items.isEmpty
+          ? const EmptyState(
+              icon: Icons.notifications_none,
+              title: 'No notifications',
+              message: 'Order updates will appear here.',
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(20),
+              itemCount: inbox.items.length,
+              separatorBuilder: (_, _) => const Divider(),
+              itemBuilder: (context, i) {
+                final n = inbox.items[i];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    n.read ? Icons.notifications_none : Icons.notifications_active_outlined,
+                    color: n.read ? MazonnColors.stone : MazonnColors.goldDark,
+                  ),
+                  title: Text(n.title, style: TextStyle(fontWeight: n.read ? FontWeight.w500 : FontWeight.w700)),
+                  subtitle: Text('${n.body}\n${n.displayTime}'),
+                  isThreeLine: true,
+                  onTap: () {
+                    inbox.markRead(n.id);
+                    final orderId = n.orderId;
+                    if (orderId == null) return;
+                    context.push(auth.isVendor ? '/studio/orders/$orderId' : '/shop/orders/$orderId');
+                  },
+                );
+              },
+            ),
     );
   }
 }
@@ -360,7 +444,8 @@ class SettingsScreen extends StatelessWidget {
           SwitchListTile(title: Text('Push notifications'), value: true, onChanged: null),
           SwitchListTile(title: Text('Email updates'), value: false, onChanged: null),
           ListTile(title: Text('Language'), subtitle: Text('English')),
-          ListTile(title: Text('Currency'), subtitle: Text('USD')),
+          ListTile(title: Text('Currency'), subtitle: Text('PKR')),
+          ListTile(title: Text('Country'), subtitle: Text('Pakistan')),
         ],
       ),
     );
